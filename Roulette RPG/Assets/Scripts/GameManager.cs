@@ -4,35 +4,45 @@ using UnityEngine;
 
 public class GameManager : MonoBehaviour {
 
-    private UIManager ui;
+    private UIManager ui; 
 
+    //creates a new player object which has the default player stats defined in player.cs.
     public Player currentPlayer = new Player();
 
-    // Use this for initialization
+    //this list is holding the items which the player sifts through to find upgrades.
+    private List<Item> loot = new List<Item>();     //TODO
+
     void Start() {
         ui = FindObjectOfType<UIManager>();
 
-        ui.holder.SetActive(false);
+        //when the game starts, the player doens't see the player stats or the item display panel.
+        ui.inGameUIObjectsHolder.SetActive(false);
+        ui.itemDisplayPanel.SetActive(false);
     }
 
+    //starts a new game.
     public void StartGame()
     {
         currentPlayer = new Player();
-        ui.UpdateUI();
-        ui.holder.SetActive(true);
+        currentPlayer.equippedRevolver = Item.StartingRevolver();
+        currentPlayer.UpdateInventoryStatBonuses();
+        ui.DisplayPlayerStats();
+        ui.inGameUIObjectsHolder.SetActive(true);
     }
 
+    //handles player death.
     public void EndGame()
     {
-        ui.holder.SetActive(false);
+        ui.inGameUIObjectsHolder.SetActive(false);
     }
 
+    //increments bullets in chamber.
     public void IncrementBullets()
     {
         if (currentPlayer.currentBullets < currentPlayer.maxBullets)
         {
             currentPlayer.currentBullets++;
-            ui.UpdateUI();
+            ui.DisplayPlayerStats();
         }
         else
         {
@@ -40,12 +50,13 @@ public class GameManager : MonoBehaviour {
         }       
     }
 
+    //decrements bullets in chamber.
     public void DecrementBullets()
     {
         if (currentPlayer.currentBullets > 0)
         {
             currentPlayer.currentBullets--;
-            ui.UpdateUI();
+            ui.DisplayPlayerStats();
         }
         else
         {
@@ -53,6 +64,7 @@ public class GameManager : MonoBehaviour {
         }
     }
 
+    //handles firing the gun.
     public void Fire()
     {
         if (currentPlayer.currentBullets < 1)
@@ -66,33 +78,56 @@ public class GameManager : MonoBehaviour {
         if (bulletFired <= currentPlayer.currentBullets)
         {
             Debug.Log("A bullet was fired.");
-            if (currentPlayer.currentHealth < currentPlayer.Damage())
+
+            //if the player didn't dodge the bullet, proceed to damage the player.
+            if (!currentPlayer.Dodge())
             {
-                EndGame();
+                Debug.Log("You didn't dodge the bullet.");
+                if (currentPlayer.currentHealth < currentPlayer.Damage())
+                {
+                    EndGame();
+                }
+                currentPlayer.currentHealth -= currentPlayer.Damage();
             }
-            currentPlayer.currentHealth -= currentPlayer.Damage();
+            else
+            {
+                Debug.Log("You dodged a bullet. Phew.");
+            }
         }
         else
         {
             Debug.Log("An empty round was fired.");
+
+            currentPlayer.currentHealth += currentPlayer.healthRegenOnSafeShot;
+            Debug.Log("Healing on safe shot for " + currentPlayer.healthRegenOnSafeShot);
+
+            currentPlayer.currentMana += currentPlayer.manaRegenOnSafeShot;
+            Debug.Log("Regenerating mana on safe shot for " + currentPlayer.manaRegenOnSafeShot);
+
             currentPlayer.AddExperience();
         }
-        ui.UpdateUI();
+        ui.DisplayPlayerStats();
     }
+
     //This is for testing purposes.
     public void GenerateItem()
     {
+        
+        
+        ui.DisplayItem(NewRandomItem());
+    }
 
-        Item newItem = new Item();
+    //generates a random item and returns it
+    private Item NewRandomItem()
+    {
+        Item tempItem = new Item();
 
-        newItem.requiredLevel = currentPlayer.level;
-        newItem.RollItemType();
-        newItem.RollItemQuality();
-        newItem.GenerateItemName(currentPlayer.level);
+        tempItem.itemLevel = currentPlayer.level;    //This has to be called first because the functions below use the itemLevel variable.
+        tempItem.RollItemType();
+        tempItem.RollItemQuality();
+        tempItem.GenerateItemName();
+        tempItem.GenerateItemStats();
 
-        ui.DisplayItem(newItem);
-
-        Debug.Log("Item type: " + newItem.itemType);
-        Debug.Log("Item quality: " + newItem.itemQuality);
+        return tempItem;
     }
 }
